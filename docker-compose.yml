@@ -1,0 +1,44 @@
+
+version: '3.9'
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: besttask
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/besttask
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: dev_dev_dev_change_me
+      EMAIL_SERVER_HOST: mailhog
+      EMAIL_SERVER_PORT: 1025
+      EMAIL_SERVER_USER: user
+      EMAIL_SERVER_PASSWORD: pass
+      EMAIL_FROM: noreply@besttask.local
+      STRIPE_SECRET_KEY: sk_test_dummy
+      STRIPE_WEBHOOK_SECRET: whsec_dummy
+      APP_DEFAULT_CITY: Chicago
+      APP_DEFAULT_AREA_KM: "64"
+    ports:
+      - "3000:3000"
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # Web UI
+
+volumes:
+  db_data:

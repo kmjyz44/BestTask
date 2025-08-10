@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "BestTask",
+    "slug": "besttask",
+    "version": "1.0.0",
+    "sdkVersion": "51.0.0",
+    "orientation": "portrait",
+    "platforms": [
+      "android",
+      "ios"
+    ],
+    "web": {
+      "bundler": "metro"
+    },
+    "scheme": "besttask",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.besttask.mobile"
+    },
+    "android": {
+      "package": "app.besttask.mobile"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    },
+    "plugins": [
+      "expo-build-properties"
+    ]
+  }
+}

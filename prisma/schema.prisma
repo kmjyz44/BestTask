@@ -1,0 +1,141 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role { CLIENT WORKER ADMIN }
+
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  email   String   @unique
+  name    String?
+  phone   String?
+  role    Role     @default(CLIENT)
+
+  worker  WorkerProfile?
+  reviewsFrom Review[] @relation("reviews_from")
+  reviewsTo   Review[] @relation("reviews_to")
+  accounts Account[]
+  sessions Session[]
+}
+
+model WorkerProfile {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String   @unique
+  categories String[]
+  hourlyRate Int?
+  radiusKm   Int      @default(64)
+  kycStatus  String   @default("pending")
+  rating     Float    @default(0)
+  bio        String?
+  portfolio  Json?
+}
+
+model Job {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  client      User     @relation(fields: [clientId], references: [id])
+  clientId    String
+  title       String
+  description String
+  address     String?
+  latitude    Float?
+  longitude   Float?
+  budgetType  String   // "hourly" | "fixed"
+  budgetMin   Int?
+  budgetMax   Int?
+  status      String   @default("open") // open|assigned|in_progress|done|canceled
+  offers      Offer[]
+  contract    Contract?
+}
+
+model Offer {
+  id        String   @id @default(cuid())
+  job       Job      @relation(fields: [jobId], references: [id])
+  jobId     String
+  worker    User     @relation(fields: [workerId], references: [id])
+  workerId  String
+  price     Int
+  note      String?
+  status    String   @default("pending") // pending|accepted|declined
+}
+
+model Contract {
+  id          String   @id @default(cuid())
+  job         Job      @relation(fields: [jobId], references: [id])
+  jobId       String   @unique
+  worker      User     @relation(fields: [workerId], references: [id])
+  workerId    String
+  agreedPrice Int
+  status      String   @default("created") // created|paid|in_progress|completed|refunded
+  payment     Payment?
+  reviewClient Review?
+  reviewWorker Review?
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  contract       Contract @relation(fields: [contractId], references: [id])
+  contractId     String   @unique
+  amount         Int
+  fee            Int
+  status         String   @default("requires_payment") // requires_payment|succeeded|refunded
+  stripeIntentId String?
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  contract  Contract @relation(fields: [contractId], references: [id])
+  contractId String  @unique
+  from      User     @relation("reviews_from", fields: [fromId], references: [id])
+  fromId    String
+  to        User     @relation("reviews_to", fields: [toId], references: [id])
+  toId      String
+  stars     Int
+  text      String?
+}
+
+/// NextAuth models (adapted for Prisma)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
