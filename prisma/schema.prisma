@@ -1,125 +1,142 @@
+// ---------- Prisma schema for BestTask ----------
 
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-enum Role { CLIENT WORKER ADMIN }
+enum Role {
+  CLIENT
+  WORKER
+  ADMIN
+}
+
+enum BudgetType {
+  fixed
+  hourly
+}
+
+enum PaymentStatus {
+  processing
+  succeeded
+  requires_payment_method
+  requires_action
+  canceled
+  failed
+}
 
 model User {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  email   String   @unique
-  name    String?
-  phone   String?
-  role    Role     @default(CLIENT)
+  email       String   @unique
+  name        String?
+  phone       String?
+  role        Role     @default(CLIENT)
 
-  worker  WorkerProfile?
+  worker      WorkerProfile?
   reviewsFrom Review[] @relation("reviews_from")
   reviewsTo   Review[] @relation("reviews_to")
-  accounts Account[]
-  sessions Session[]
+
+  accounts    Account[]
+  sessions    Session[]
+
+  jobs        Job[]    @relation("user_jobs")
+  offers      Offer[]  @relation("user_offers")
+  contracts   Contract[] @relation("user_contracts")
 }
 
 model WorkerProfile {
-  id         String   @id @default(cuid())
-  user       User     @relation(fields: [userId], references: [id])
-  userId     String   @unique
-  categories String[]
-  hourlyRate Int?
-  radiusKm   Int      @default(64)
-  kycStatus  String   @default("pending")
-  rating     Float    @default(0)
-  bio        String?
-  portfolio  Json?
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id])
+  bio              String?
+  skills           String?
+  connectedStripeId String?
 }
 
 model Job {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  client      User     @relation(fields: [clientId], references: [id])
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
   clientId    String
+  client      User      @relation("user_jobs", fields: [clientId], references: [id])
+
   title       String
   description String
+  budgetType  BudgetType @default(fixed)
+  budgetMin   Int?
+  budgetMax   Int?
   address     String?
   latitude    Float?
   longitude   Float?
-  budgetType  String   // "hourly" | "fixed"
-  budgetMin   Int?
-  budgetMax   Int?
-  status      String   @default("open") // open|assigned|in_progress|done|canceled
+
   offers      Offer[]
-  contract    Contract?
+  contracts   Contract[]
 }
 
 model Offer {
   id        String   @id @default(cuid())
-  job       Job      @relation(fields: [jobId], references: [id])
+  createdAt DateTime @default(now())
+
   jobId     String
-  worker    User     @relation(fields: [workerId], references: [id])
+  job       Job      @relation(fields: [jobId], references: [id])
+
   workerId  String
+  worker    User     @relation("user_offers", fields: [workerId], references: [id])
+
   price     Int
   note      String?
-  status    String   @default("pending") // pending|accepted|declined
+  accepted  Boolean  @default(false)
 }
 
 model Contract {
   id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+
+  jobId       String
   job         Job      @relation(fields: [jobId], references: [id])
-  jobId       String   @unique
-  worker      User     @relation(fields: [workerId], references: [id])
+
   workerId    String
+  worker      User     @relation("user_contracts", fields: [workerId], references: [id])
+
   agreedPrice Int
-  status      String   @default("created") // created|paid|in_progress|completed|refunded
+
   payment     Payment?
-  reviewClient Review?
-  reviewWorker Review?
 }
 
 model Payment {
-  id             String   @id @default(cuid())
-  contract       Contract @relation(fields: [contractId], references: [id])
-  contractId     String   @unique
+  id             String         @id @default(cuid())
+  createdAt      DateTime       @default(now())
+  contractId     String         @unique
+  contract       Contract       @relation(fields: [contractId], references: [id])
+
   amount         Int
   fee            Int
-  status         String   @default("requires_payment") // requires_payment|succeeded|refunded
+  status         PaymentStatus
   stripeIntentId String?
 }
 
-model Review {
-  id        String   @id @default(cuid())
-  contract  Contract @relation(fields: [contractId], references: [id])
-  contractId String  @unique
-  from      User     @relation("reviews_from", fields: [fromId], references: [id])
-  fromId    String
-  to        User     @relation("reviews_to", fields: [toId], references: [id])
-  toId      String
-  stars     Int
-  text      String?
-}
-
-/// NextAuth models (adapted for Prisma)
+// ---------- Auth.js / NextAuth tables ----------
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  user User @relation(fields: [userId], references: [id])
   @@unique([provider, providerAccountId])
 }
 
@@ -129,7 +146,7 @@ model Session {
   userId       String
   expires      DateTime
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 }
 
 model VerificationToken {
@@ -138,4 +155,17 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ---------- Reviews (optional, вже використовується в коді) ----------
+model Review {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  fromId    String
+  toId      String
+  rating    Int
+  comment   String?
+
+  from User @relation("reviews_from", fields: [fromId], references: [id])
+  to   User @relation("reviews_to",   fields: [toId],   references: [id])
 }
