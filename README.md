@@ -1,4 +1,4 @@
-
+ 
 # BestTask — Task Marketplace Starter (Next.js 14 + TS)
 
 **Region:** North Chicago + 40 miles (configurable)  
