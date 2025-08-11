@@ -1,11 +1,10 @@
 
-import createNextIntlPlugin from 'next-intl/plugin';
-const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
-
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverActions: { allowedOrigins: ['*'] }
-  }
+  reactStrictMode: true,
+  // якщо використовуєш App Router — все ок
+  // додатково можна вмикати експерименти за потреби:
+  // experimental: { esmExternals: 'loose' },
 };
 
-export default withNextIntl(nextConfig);
+export default nextConfig;
